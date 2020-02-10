@@ -10,16 +10,13 @@ def start_server(host, port):
     server_socket.listen()
     print('listening on', (host, port))
     while True:
-        try:
-            conn, addr = server_socket.accept()  # Should be ready to read
-            print('accepted connection from', addr)
-            start_new_thread(service_existing_connection(conn))
-        except:
-            continue
+        conn, addr = server_socket.accept()  # Should be ready to read
+        print('accepted connection from', addr)
+        start_new_thread(service_existing_connection, (conn, addr))
 
 
-def service_existing_connection(connection):
-    print('servicing')
+def service_existing_connection(connection, address):
+    print('servicing', address)
     while True:
         received_data = connection.recv(1024)
         if received_data:
@@ -56,4 +53,4 @@ def receive(sock):
     return message
 
 
-start_server('192.168.0.11', 37777)
+start_server('35.40.127.168', 37777)

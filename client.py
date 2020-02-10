@@ -7,19 +7,23 @@ chunk_size = 24
 
 
 def main():
-    a_socket = start_connection('192.168.0.11', 37777, message1)
-    time.sleep(1)
+    a_socket = start_connection('35.40.127.168', 37777, message1)
     send(message1, a_socket)
     receive(a_socket)
+    close_connection(a_socket)
+
+
+def close_connection(sock):
     time.sleep(1)
-    a_socket.send(b'close_connection')
-    a_socket.close()
+    sock.send(b'close_connection')
+    sock.close()
 
 
 def start_connection(host, port, message):
     print('starting connection to', host, ':', port)
     new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     new_socket.connect((host, port))
+    time.sleep(1)
     return new_socket
 
 
