@@ -37,7 +37,7 @@ def main():
 def list_cmd(socket_connection):
     socket_connection.send(b'LIST')
     socket_connection.send(b'end_transmission')
-    receive(socket_connection)
+    print(receive(socket_connection))
 
 
 def retrieve_cmd(socket_connection, user_input_arr):
@@ -103,10 +103,9 @@ def start_connection(user_input_arr):
         return None
     host = user_input_arr[1]
     port = user_input_arr[2]
-    if not isInt(port):
-        print("Port number must be a valid integer: ", port)
+    if not isInt(port) and 0 <= int(port) <= 65535:
+        print("Port number must be a valid integer from 0 to 65535: ", port)
         return None
-    print('starting connection to', host, ':', port)
     new_socket = None
     try:
         new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
