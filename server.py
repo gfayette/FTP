@@ -4,13 +4,15 @@ from _thread import *
 chunk_size = 24
 
 
-def start_server(host, port):
+def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
+    server_socket.bind(('', 0))
     server_socket.listen()
-    print('listening on', (host, port))
+    print('listening on', (socket.gethostbyname(socket.gethostname()),
+                           server_socket.getsockname()[1]))
     while True:
         conn, addr = server_socket.accept()  # Should be ready to read
+        print("lmao cd")
         print('accepted connection from', addr)
         start_new_thread(service_existing_connection, (conn, addr))
 
@@ -52,5 +54,5 @@ def receive(sock):
     print('received', message.decode(), 'from client')
     return message
 
-
-start_server('35.40.127.168', 37777)
+if __name__ == "__main__":
+    start_server()
