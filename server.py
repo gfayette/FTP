@@ -1,5 +1,9 @@
+import os
+import subprocess
 import socket
 from _thread import *
+from builtins import len
+from subprocess import call
 
 chunk_size = 1024
 
@@ -35,12 +39,20 @@ def service_existing_connection(socket_connection, address):
 
 def list_cmd(socket_connection):
     # expects 'END_TRANSMISSION' then sends the files in the directory followed by 'END_TRANSMISSION'
+    files = [f for f in os.listdir('.')
+             if os.path.isfile(f)]
+    for f in files:
+        #print(f)
+        socket_connection.send(f.encode())
+    socket_connection.send(b'END_TRANSMISSION')
+
     print('list')
 
 
 def retrieve_cmd(socket_connection):
     # expects the file name followed by 'END_TRANSMISSION' then sends the requested file or 'NOT_FOUND'
     # followed by 'END_TRANSMISSION'
+
     print('retrieve', socket_connection.recv(chunk_size))
 
 

@@ -33,7 +33,7 @@ def main():
 def list_cmd(socket_connection):
     socket_connection.send(b'LIST')
     socket_connection.send(b'END_TRANSMISSION')
-    print(receive(socket_connection))
+    receive(socket_connection)
 
 
 def retrieve_cmd(socket_connection, user_input_arr):
@@ -127,10 +127,11 @@ def receive(sock, chunk_size=1024):
     received_chunk = sock.recv(chunk_size)
     message = b''
     while received_chunk != b'END_TRANSMISSION':
-        message = message + received_chunk
-        print('Received ', len(received_chunk), ' bytes')
+        message = received_chunk
+       # print('Received ', len(received_chunk), ' bytes')
+        print(message.decode())
         received_chunk = sock.recv(chunk_size)
-    return message
+    #return message
 
 
 if __name__ == "__main__":
