@@ -2,10 +2,6 @@ import time
 import socket
 from os import path
 
-message1 = b'Message 1 from clientMessage 1 from clientMessage 1 from clientMessage 1 from clientMessage 1 from clientMessage 1 from clientMessage 1 from clientMessage 1 from client'
-message2 = b'Message 2'
-chunk_size = 24
-
 
 def main():
     socket_connection = None
@@ -19,24 +15,24 @@ def main():
         elif socket_connection is None:
             print("No connection has been made.  You must first connect to a "
                   "server with the CONNECT command before issuing other commands")
-
-        if command.upper() == "LIST":
-            list_cmd(socket_connection)
-        elif command.upper() == "RETRIEVE":
-            retrieve_cmd(socket_connection, user_input_arr)
-        elif command.upper() == "STORE":
-            store_cmd(socket_connection, user_input_arr)
-        elif command.upper() == "QUIT":
-            quit_cmd(socket_connection)
-        elif command.upper() == "HELP":
-            help_cmd()
         else:
-            print(command, "is not a valid command.  Enter HELP for a list of all commands")
+            if command.upper() == "LIST":
+                list_cmd(socket_connection)
+            elif command.upper() == "RETRIEVE":
+                retrieve_cmd(socket_connection, user_input_arr)
+            elif command.upper() == "STORE":
+                store_cmd(socket_connection, user_input_arr)
+            elif command.upper() == "QUIT":
+                quit_cmd(socket_connection)
+            elif command.upper() == "HELP":
+                help_cmd()
+            else:
+                print(command, "is not a valid command.  Enter HELP for a list of all commands")
 
 
 def list_cmd(socket_connection):
     socket_connection.send(b'LIST')
-    socket_connection.send(b'end_transmission')
+    socket_connection.send(b'END_TRANSMISSION')
     print(receive(socket_connection))
 
 
@@ -46,8 +42,8 @@ def retrieve_cmd(socket_connection, user_input_arr):
         return
     file_name = user_input_arr[1]
     socket_connection.send(b'RETRIEVE')
-    socket_connection.send(file_name)
-    socket_connection.send(b'end_transmission')
+    socket_connection.send(file_name.encode())
+    socket_connection.send(b'END_TRANSMISSION')
     file_data = receive(socket_connection)
     if file_data == "NOT_FOUND":
         print("ERROR:", file_name, "was not found on the server")
@@ -66,10 +62,12 @@ def store_cmd(socket_connection, user_input_arr):
     if not path.isfile(file_name):
         print("ERROR:", file_name, "was not found in your file system")
         return
+    socket_connection.send(b'STORE')
+    socket_connection.send(file_name.encode())
     with open(file_name) as f:
         for piece in read_in_chunks(f):
-            socket_connection.send(piece)
-    socket_connection.send(b'end_transmission')
+            socket_connection.send(piece.encode())
+    socket_connection.send(b'END_TRANSMISSION')
 
 
 def help_cmd():
@@ -92,7 +90,7 @@ def read_in_chunks(file_object, chunk_size=1024):
 
 
 def quit_cmd(socket_connection):
-    socket_connection.send(b'close_connection')
+    socket_connection.send(b'CLOSE_CONNECTION')
     socket_connection.close()
 
 
@@ -125,22 +123,10 @@ def isInt(value):
         return False
 
 
-def send(message, sock):
-    total_bytes_sent = 0
-    while len(message) > 0:
-        message_chunk = message[:chunk_size]
-        bytes_sent = sock.send(message_chunk)
-        print('Sending ', bytes_sent, ' bytes')
-        message = message[bytes_sent:]
-        total_bytes_sent = total_bytes_sent + bytes_sent
-    print('Total bytes sent: ', total_bytes_sent)
-    sock.send(b'end_transmission')
-
-
-def receive(sock):
+def receive(sock, chunk_size=1024):
     received_chunk = sock.recv(chunk_size)
     message = b''
-    while received_chunk.decode() != 'end_transmission':
+    while received_chunk != b'END_TRANSMISSION':
         message = message + received_chunk
         print('Received ', len(received_chunk), ' bytes')
         received_chunk = sock.recv(chunk_size)

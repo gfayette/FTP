@@ -1,58 +1,64 @@
 import socket
 from _thread import *
 
-chunk_size = 24
+chunk_size = 1024
 
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('', 0))
     server_socket.listen()
-    print('listening on', (socket.gethostbyname(socket.gethostname()),
-                           server_socket.getsockname()[1]))
+    print('The server is listening on', (socket.gethostbyname(socket.gethostname()),
+                                         server_socket.getsockname()[1]))
     while True:
-        conn, addr = server_socket.accept()  # Should be ready to read
+        socket_connection, address = server_socket.accept()
         print("lmao cd")
-        print('accepted connection from', addr)
-        start_new_thread(service_existing_connection, (conn, addr))
+        print('Accepted connection from', address)
+        start_new_thread(service_existing_connection, (socket_connection, address))
 
 
-def service_existing_connection(connection, address):
-    print('servicing', address)
+def service_existing_connection(socket_connection, address):
     while True:
-        received_data = connection.recv(1024)
+        received_data = socket_connection.recv(chunk_size)
         if received_data:
-            if received_data.decode() == 'close_connection':
-                print('closing connection')
-                connection.close()
+            if received_data == b'CLOSE_CONNECTION':
+                print('Closing connection with', address)
+                socket_connection.close()
                 break
-            if received_data.decode() == 'start_transmission':
-                print('receiving transmission')
-                message = receive(connection)
-                send(message, connection)
+            elif received_data == b'LIST':
+                list_cmd(socket_connection)
+            elif received_data == b'RETRIEVE':
+                retrieve_cmd(socket_connection)
+            elif received_data == b'STORE':
+                store_cmd(socket_connection)
 
 
-def send(message, sock):
-    total_bytes_sent = 0
-    while len(message) > 0:
-        message_chunk = message[:chunk_size]
-        bytes_sent = sock.send(message_chunk)
-        print('Sending ', bytes_sent, ' bytes')
-        message = message[bytes_sent:]
-        total_bytes_sent = total_bytes_sent + bytes_sent
-    print('Total bytes sent: ', total_bytes_sent)
-    sock.send(b'end_transmission')
+def list_cmd(socket_connection):
+    # expects 'END_TRANSMISSION' then sends the files in the directory followed by 'END_TRANSMISSION'
+    print('list')
+
+
+def retrieve_cmd(socket_connection):
+    # expects the file name followed by 'END_TRANSMISSION' then sends the requested file or 'NOT_FOUND'
+    # followed by 'END_TRANSMISSION'
+    print('retrieve', socket_connection.recv(chunk_size))
+
+
+def store_cmd(socket_connection):
+    # expects the file name followed by the file data followed by 'END_TRANSMISSION'
+    print('store', socket_connection.recv(chunk_size))
 
 
 def receive(sock):
     received_chunk = sock.recv(chunk_size)
     message = b''
-    while received_chunk.decode() != 'end_transmission':
+    while received_chunk != b'END_TRANSMISSION':
         message = message + received_chunk
         print('Received ', len(received_chunk), ' bytes')
         received_chunk = sock.recv(chunk_size)
     print('received', message.decode(), 'from client')
     return message
+
 
 if __name__ == "__main__":
     start_server()
