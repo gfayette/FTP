@@ -8,7 +8,7 @@ chunk_size = 1024000
 def main():
     socket_connection = None
     print("Enter HELP for a list of commands")
-    socket_connection = start_connection(". 192.168.0.11 37777".split())
+    # socket_connection = start_connection(". 192.168.0.11 37777".split())
     while True:
         user_input = input("Enter a command: ")
         user_input_arr = user_input.split()

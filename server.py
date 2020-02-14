@@ -9,8 +9,8 @@ chunk_size = 1024000
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # server_socket.bind(('', 0))
-    server_socket.bind(('192.168.0.11', 37777))
+    server_socket.bind(('', 0))
+    # server_socket.bind(('192.168.0.11', 37777))
     server_socket.listen()
     print('The server is listening on', (socket.gethostbyname(socket.gethostname()),
                                          server_socket.getsockname()[1]))
