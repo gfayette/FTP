@@ -1,16 +1,16 @@
 import os
-import subprocess
+from os import path
 import socket
+import time
 from _thread import *
-from builtins import len
-from subprocess import call
 
-chunk_size = 1024
+chunk_size = 1024000
 
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('', 0))
+    # server_socket.bind(('', 0))
+    server_socket.bind(('192.168.0.11', 37777))
     server_socket.listen()
     print('The server is listening on', (socket.gethostbyname(socket.gethostname()),
                                          server_socket.getsockname()[1]))
@@ -38,38 +38,54 @@ def service_existing_connection(socket_connection, address):
 
 
 def list_cmd(socket_connection):
-    # expects 'END_TRANSMISSION' then sends the files in the directory followed by 'END_TRANSMISSION'
     files = [f for f in os.listdir('.')
              if os.path.isfile(f)]
     for f in files:
-        #print(f)
         socket_connection.send(f.encode())
+        time.sleep(.1)
     socket_connection.send(b'END_TRANSMISSION')
-
-    print('list')
 
 
 def retrieve_cmd(socket_connection):
-    # expects the file name followed by 'END_TRANSMISSION' then sends the requested file or 'NOT_FOUND'
-    # followed by 'END_TRANSMISSION'
-
-    print('retrieve', socket_connection.recv(chunk_size))
+    file_name = socket_connection.recv(chunk_size).decode()
+    if not path.isfile(file_name):
+        socket_connection.send(b'NOT_FOUND')
+    else:
+        with open(file_name, "rb") as f:
+            for piece in read_in_chunks(f):
+                socket_connection.send(piece)
+    time.sleep(1)
+    socket_connection.send(b'END_TRANSMISSION')
 
 
 def store_cmd(socket_connection):
-    # expects the file name followed by the file data followed by 'END_TRANSMISSION'
-    print('store', socket_connection.recv(chunk_size))
+    print("store")
+    file_name = socket_connection.recv(chunk_size).decode()
+    file_data = receive(socket_connection)
+    print("store")
+    f = open(file_name, "wb")
+    f.write(file_data)
+    f.close()
 
 
 def receive(sock):
+    print("rec")
     received_chunk = sock.recv(chunk_size)
     message = b''
     while received_chunk != b'END_TRANSMISSION':
+        print("recchunk", received_chunk)
         message = message + received_chunk
-        print('Received ', len(received_chunk), ' bytes')
         received_chunk = sock.recv(chunk_size)
-    print('received', message.decode(), 'from client')
+    print("rec")
     return message
+
+
+def read_in_chunks(file_object):
+    while True:
+        data = file_object.read(chunk_size)
+        if not data:
+            break
+        yield data
 
 
 if __name__ == "__main__":
