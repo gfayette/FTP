@@ -47,6 +47,7 @@ def retrieve_cmd(socket_connection, user_input_arr):
         print("ERROR: The RETRIEVE command requires a file name as input")
         return
     file_name = user_input_arr[1]
+    print('Retrieving', file_name, 'from server')
     send_msg(socket_connection, b'RETRIEVE')
     send_msg(socket_connection, file_name.encode())
     file_data = receive_in_chunks(socket_connection)
@@ -67,6 +68,7 @@ def store_cmd(socket_connection, user_input_arr):
     if not path.isfile(file_name):
         print("ERROR:", file_name, "was not found in your file system")
         return
+    print('Storing', file_name, 'on the server')
     send_msg(socket_connection, b'STORE')
     send_msg(socket_connection, file_name.encode())
     with open(file_name, "rb") as f:
@@ -88,6 +90,7 @@ def quit_cmd(socket_connection):
     send_msg(socket_connection, b'CLOSE_CONNECTION')
     time.sleep(1)
     socket_connection.close()
+    print('Closing connection with server and exiting')
     sys.exit()
 
 

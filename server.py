@@ -32,14 +32,15 @@ def service_existing_connection(socket_connection, address):
             socket_connection.close()
             break
         elif received_data == b'LIST':
-            list_cmd(socket_connection)
+            list_cmd(socket_connection, address)
         elif received_data == b'RETRIEVE':
-            retrieve_cmd(socket_connection)
+            retrieve_cmd(socket_connection, address)
         elif received_data == b'STORE':
-            store_cmd(socket_connection)
+            store_cmd(socket_connection, address)
 
 
-def list_cmd(socket_connection):
+def list_cmd(socket_connection, address):
+    print('Sending file list to', address)
     files = [f for f in os.listdir('.')
              if os.path.isfile(f)]
     for f in files:
@@ -47,25 +48,28 @@ def list_cmd(socket_connection):
     send_message(socket_connection, b'END_TRANSMISSION')
 
 
-def retrieve_cmd(socket_connection):
+def retrieve_cmd(socket_connection, address):
     file_name = receive_message(socket_connection).decode()
+    print('Sending', file_name, 'to', address)
     if not path.isfile(file_name):
+        print("ERROR:", file_name, "was not found on the server")
         send_message(socket_connection, b'NOT_FOUND')
     else:
         with open(file_name, "rb") as f:
             for piece in read_in_chunks(f):
                 send_message(socket_connection, piece)
+            print(file_name, 'was successfully retrieved by', address)
     send_message(socket_connection, b'END_TRANSMISSION')
 
 
-def store_cmd(socket_connection):
-    print("store")
+def store_cmd(socket_connection, address):
     file_name = receive_message(socket_connection).decode()
+    print('Receiving', file_name, 'from', address)
     file_data = receive_in_chunks(socket_connection)
-    print("store")
     f = open(file_name, "wb")
     f.write(file_data)
     f.close()
+    print(file_name, 'was successfully stored on the server')
 
 
 def send_message(sock, msg):
