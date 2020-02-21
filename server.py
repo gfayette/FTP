@@ -25,6 +25,7 @@ import struct
 import sys
 from os import path
 import socket
+import math
 from _thread import *
 
 
@@ -68,33 +69,39 @@ def list_cmd(socket_connection, address):
     print('Sending file list to', address)
     files = [f for f in os.listdir('.')
              if os.path.isfile(f)]  # gathering all the files in the current directory
+    num_files = len(files)
+    send_message(socket_connection, struct.pack('>I', num_files))
     for f in files:
         send_message(socket_connection, f.encode())  # sending files to client
-    send_message(socket_connection, b'END_TRANSMISSION')
 
 
 # Function used to retrieve a file from the server to the client
-def retrieve_cmd(socket_connection, address):
+def retrieve_cmd(socket_connection, address, chunk_size=1024000):
     file_name = receive_message(socket_connection).decode()
     print('Retrieving', file_name)
     if not path.isfile(file_name):  # checks to see if file is on server
         print("ERROR:", file_name, "was not found on the server")
         send_message(socket_connection, b'NOT_FOUND')
     else:
+        send_message(socket_connection, b'OK')
+        num_chunks = math.ceil(os.path.getsize(file_name) / chunk_size)
+        send_message(socket_connection, struct.pack('>I', num_chunks))
         with open(file_name, "rb") as f:
-            for piece in read_in_chunks(f):
-                send_message(socket_connection, piece)  # sends file over to client
-            print(file_name, 'was successfully retrieved by', address)
-    send_message(socket_connection, b'END_TRANSMISSION')
+            for piece in read_in_chunks(f, chunk_size):
+                send_message(socket_connection, piece)
+        print(file_name, 'was successfully retrieved by', address)
 
 
 # Function used to store a file from a client to the server
 def store_cmd(socket_connection, address):
     file_name = receive_message(socket_connection).decode()  # reading in data from client
     print('Receiving', file_name, 'from', address)
-    file_data = receive_in_chunks(socket_connection)
+    num_chunks = struct.unpack('>I', receive_message(socket_connection))[0]
     f = open(file_name, "wb")
-    f.write(file_data)  # writing data to file on server
+    while num_chunks > 0:
+        received_chunk = receive_message(socket_connection)
+        f.write(received_chunk)
+        num_chunks = num_chunks - 1
     f.close()
     print(file_name, 'was successfully stored on the server')
 
