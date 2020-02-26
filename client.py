@@ -9,7 +9,9 @@ import struct
 import sys
 import time
 import socket
+import os
 from os import path
+import math
 
 
 # Main method used to listen to user input and call functions
@@ -22,6 +24,10 @@ def main():
         command = user_input_arr[0]
         if command.upper() == "CONNECT":
             socket_connection = start_connection(user_input_arr)  # attempting to connect to a specified server
+        elif command.upper() == "QUIT":
+            quit_cmd(socket_connection)
+        elif command.upper() == "HELP":
+            help_cmd()
         elif socket_connection is None:
             print("No connection has been made.  You must first connect to a "
                   "server with the CONNECT command before issuing other commands")
@@ -32,10 +38,6 @@ def main():
                 retrieve_cmd(socket_connection, user_input_arr)
             elif command.upper() == "STORE":
                 store_cmd(socket_connection, user_input_arr)
-            elif command.upper() == "QUIT":
-                quit_cmd(socket_connection)
-            elif command.upper() == "HELP":
-                help_cmd()
             else:
                 print(command, "is not a valid command.  Enter HELP for a list of all commands")
 
@@ -43,12 +45,11 @@ def main():
 # Function that sends the list command to the server and reads in the servers output
 def list_cmd(socket_connection):
     send_msg(socket_connection, b'LIST')  # sending list command to server
-    while True:
+    num_files = struct.unpack('>I', receive_message(socket_connection))[0]
+    while num_files > 0:
         received_chunk = receive_message(socket_connection)
-        if received_chunk == b'END_TRANSMISSION':
-            break
-        else:
-            print(received_chunk.decode())  # showing the server output
+        print(received_chunk.decode())  # showing the server output
+        num_files = num_files - 1
 
 
 # Function that requests a file from the server to be stored on the client
@@ -60,18 +61,22 @@ def retrieve_cmd(socket_connection, user_input_arr):
     print('Retrieving', file_name, 'from server')
     send_msg(socket_connection, b'RETRIEVE')  # sending retrieve command with file name
     send_msg(socket_connection, file_name.encode())
-    file_data = receive_in_chunks(socket_connection)
-    if file_data == b'NOT_FOUND':  # returned if file isn't on server
+    response = receive_message(socket_connection)
+    if response == b'NOT_FOUND':  # returned if file isn't on server
         print("ERROR:", file_name, "was not found on the server")
         return
+    num_chunks = struct.unpack('>I', receive_message(socket_connection))[0]
     f = open(file_name, "wb")
-    f.write(file_data)
-    f.close()  # writing data to file on client
+    while num_chunks > 0:
+        received_chunk = receive_message(socket_connection)
+        f.write(received_chunk)
+        num_chunks = num_chunks - 1
+    f.close()
     print(file_name, "was successfully retrieved from the server")
 
 
 # Function to send a file to the server to be stored
-def store_cmd(socket_connection, user_input_arr):
+def store_cmd(socket_connection, user_input_arr, chunk_size=1024000):
     if len(user_input_arr) != 2:  # checks to see if there is a parameter
         print("ERROR: The STORE command requires a file name as input")
         return
@@ -82,10 +87,11 @@ def store_cmd(socket_connection, user_input_arr):
     print('Storing', file_name, 'on the server')
     send_msg(socket_connection, b'STORE')
     send_msg(socket_connection, file_name.encode())  # sending file to server
+    num_chunks = math.ceil(os.path.getsize(file_name)/chunk_size)
+    send_msg(socket_connection, struct.pack('>I', num_chunks))
     with open(file_name, "rb") as f:
-        for piece in read_in_chunks(f):
+        for piece in read_in_chunks(f, chunk_size):
             send_msg(socket_connection, piece)
-    send_msg(socket_connection, b'END_TRANSMISSION')
 
 
 # Function that displays usable commands and functionality
@@ -100,10 +106,12 @@ def help_cmd():
 
 # Function that sends a closing notification to server and closes connection
 def quit_cmd(socket_connection):
-    send_msg(socket_connection, b'CLOSE_CONNECTION')  # Sending closing message to server
-    time.sleep(1)
-    socket_connection.close()      # Closing on clients end
-    print('Closing connection with server and exiting')
+    if socket_connection is not None:
+        print('Closing connection with server')
+        send_msg(socket_connection, b'CLOSE_CONNECTION')  # Sending closing message to server
+        time.sleep(1)
+        socket_connection.close()      # Closing on clients end
+    print('Exiting')
     sys.exit()
 
 
@@ -145,16 +153,6 @@ def send_msg(sock, msg):
     sock.sendall(msg)
 
 
-# Function to receive the message in chunks
-def receive_in_chunks(sock):
-    received_chunk = receive_message(sock)
-    message = b''
-    while received_chunk != b'END_TRANSMISSION':
-        message = message + received_chunk
-        received_chunk = receive_message(sock)
-    return message
-
-
 # Function to receive message from the socket
 def receive_message(sock):
     # Read message length and unpack it into an integer
@@ -178,7 +176,7 @@ def receive_all(sock, n):
 
 
 # Helper function to get read in chunks
-def read_in_chunks(file_object, chunk_size=1024000):
+def read_in_chunks(file_object, chunk_size):
     while True:
         data = file_object.read(chunk_size)
         if not data:
